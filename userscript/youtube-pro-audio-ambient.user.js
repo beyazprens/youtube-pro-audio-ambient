@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Pro: Audio Enhancer
 // @namespace    https://github.com/Beyazprens/youtube-pro-audio-ambient
-// @version      4.1.0
+// @version      1.0.0
 // @description  Adds a persistent audio enhancement button to YouTube for clearer sound and balanced loudness.
 // @author       Beyazprens
 // @match        https://www.youtube.com/*
