@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         YouTube Pro: Audio Enhancer (v2)
+// @name         YouTube Pro: Audio Enhancer
 // @namespace    https://github.com/Beyazprens/youtube-pro-audio-ambient
 // @version      2.0.0
 // @description  Cinema-quality sound with a professional 5-band EQ and multiband compressor.
