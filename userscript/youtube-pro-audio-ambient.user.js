@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         YouTube Pro: Audio Enhancer
 // @namespace    https://github.com/Beyazprens/youtube-pro-audio-ambient
-// @version      2.0.1
-// @description  Cinema-quality sound with a professional 5-band EQ and multiband compressor.
+// @version      2.1.0
+// @description  Cinema-quality sound with a professional 5-band EQ and multiband compressor. Remembers your settings!
 // @author       Beyazprens
 // @match        https://www.youtube.com/*
 // @license      MIT
@@ -10,12 +10,15 @@
 // @supportURL   https://github.com/Beyazprens/youtube-pro-audio-ambient/issues
 // @grant        none
 // ==/UserScript==
+
 (function () {
     'use strict';
 
-    let audioCtx = null, source = null;
-    let filters = {}, isEnhanced = false, connected = false;
+    let audioCtx = null;
+    let filters = {};
+    let isEnhanced = false;
 
+    let isEnabledInStorage = localStorage.getItem('yt-pro-audio-enabled') === 'true';
 
     const css = `
         .audio-enhance-btn {
@@ -47,25 +50,46 @@
         .audio-enhance-btn:active svg {
             transform: scale(0.95);
         }
-
         .audio-enhance-btn.active svg {
             fill: #3ea6ff !important;
             filter: drop-shadow(0 0 8px rgba(62,166,255,0.8));
         }
     `;
-    const style = document.createElement('style');
-    style.textContent = css;
-    document.head.appendChild(style);
+
+    if (!document.getElementById('yt-pro-audio-style')) {
+        const style = document.createElement('style');
+        style.id = 'yt-pro-audio-style';
+        style.textContent = css;
+        document.head.appendChild(style);
+    }
+
+    function initAudioContext() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        return audioCtx;
+    }
 
     function createAudioGraph(video) {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (connected) return;
+        initAudioContext();
 
-        try {
-            source = audioCtx.createMediaElementSource(video);
-        } catch (e) {
-            return;
+        let source;
+        if (video._ytAudioSource) {
+            source = video._ytAudioSource;
+        } else {
+            try {
+                source = audioCtx.createMediaElementSource(video);
+                video._ytAudioSource = source;
+            } catch (e) {
+                console.warn('[AudioEnhancer] Source creation skipped:', e);
+                return null;
+            }
         }
+
+        if (filters.subBass) return source;
 
         filters.subBass = audioCtx.createBiquadFilter();
         filters.subBass.type = 'lowshelf';
@@ -96,18 +120,19 @@
         filters.comp.attack.value = 0.05;
         filters.comp.release.value = 0.20;
 
-
         filters.gain = audioCtx.createGain();
         filters.gain.gain.value = 1.15;
 
-        source.connect(audioCtx.destination);
-        connected = true;
+        return source;
     }
 
-    function enableEnhancement() {
-        if (!connected || !source) return;
+    function enableEnhancement(video) {
+        const source = createAudioGraph(video);
+        if (!source) return;
+
         try {
             source.disconnect();
+
             source
                 .connect(filters.subBass)
                 .connect(filters.mudCut)
@@ -116,14 +141,17 @@
                 .connect(filters.comp)
                 .connect(filters.gain)
                 .connect(audioCtx.destination);
+
             isEnhanced = true;
         } catch (e) {
             console.warn('[AudioEnhancer] Enable failed:', e);
         }
     }
 
-    function disableEnhancement() {
-        if (!connected || !source) return;
+    function disableEnhancement(video) {
+        if (!audioCtx || !video._ytAudioSource) return;
+
+        const source = video._ytAudioSource;
         try {
             source.disconnect();
             source.connect(audioCtx.destination);
@@ -133,30 +161,31 @@
         }
     }
 
-    function toggle(video, btn) {
+    function toggleState(video, btn) {
         if (audioCtx && audioCtx.state === 'suspended') {
             audioCtx.resume();
         }
-        createAudioGraph(video);
 
         if (isEnhanced) {
-            disableEnhancement();
+            disableEnhancement(video);
             btn.classList.remove('active');
+            isEnabledInStorage = false;
         } else {
-            enableEnhancement();
+            enableEnhancement(video);
             btn.classList.add('active');
+            isEnabledInStorage = true;
         }
+
+        localStorage.setItem('yt-pro-audio-enabled', isEnabledInStorage);
     }
 
     function injectButton() {
         const leftControls = document.querySelector('.ytp-left-controls');
-        const timeDisplay = document.querySelector('.ytp-time-display');
-        if (!leftControls || !timeDisplay) return;
-        if (document.querySelector('.audio-enhance-btn')) return;
+        if (!leftControls || document.querySelector('.audio-enhance-btn')) return;
 
         const btn = document.createElement('button');
         btn.className = 'ytp-button audio-enhance-btn';
-        btn.title = 'Enchance Audio';
+        btn.title = 'Enhance Audio';
         btn.innerHTML = `
             <svg viewBox="0 0 24 24">
                 <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21
@@ -164,20 +193,54 @@
                 4-1.79 4-4V7h4V3h-6z"/>
             </svg>
         `;
+
+        const timeDisplay = document.querySelector('.ytp-time-display');
+        leftControls.insertBefore(btn, timeDisplay || leftControls.lastChild);
+
+        const video = document.querySelector('video');
+
+        if (isEnabledInStorage) {
+            btn.classList.add('active');
+            if (video) {
+                if (!video.paused) {
+                     enableEnhancement(video);
+                } else {
+                    video.addEventListener('play', () => {
+                        if (isEnabledInStorage && !isEnhanced) enableEnhancement(video);
+                    }, { once: true });
+                }
+            }
+        }
+
         btn.addEventListener('click', (e) => {
             e.preventDefault();
-            const video = document.querySelector('video');
-            if (video) toggle(video, btn);
+            const currentVideo = document.querySelector('video');
+            if (currentVideo) toggleState(currentVideo, btn);
         });
-
-        leftControls.insertBefore(btn, timeDisplay);
     }
 
-    const observer = new MutationObserver(() => {
-        injectButton();
+    const observer = new MutationObserver((mutations) => {
+        if (!document.querySelector('.audio-enhance-btn')) {
+            injectButton();
+        }
     });
+
     observer.observe(document.body, { childList: true, subtree: true });
 
-    window.addEventListener('yt-navigate-finish', injectButton);
+    window.addEventListener('yt-navigate-finish', () => {
+        isEnhanced = false;
+        injectButton();
+
+        if (isEnabledInStorage) {
+            const video = document.querySelector('video');
+            const btn = document.querySelector('.audio-enhance-btn');
+            if (video && btn) {
+                btn.classList.add('active');
+                enableEnhancement(video);
+            }
+        }
+    });
+
     injectButton();
+
 })();
