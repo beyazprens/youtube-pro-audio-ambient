@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Pro: Audio Enhancer
 // @namespace    https://github.com/Beyazprens/youtube-pro-audio-ambient
-// @version      2.1.0
+// @version      2.1.1
 // @description  Cinema-quality sound with a professional 5-band EQ and multiband compressor. Remembers your settings!
 // @author       Beyazprens
 // @match        https://www.youtube.com/*
@@ -186,13 +186,18 @@
         const btn = document.createElement('button');
         btn.className = 'ytp-button audio-enhance-btn';
         btn.title = 'Enhance Audio';
-        btn.innerHTML = `
-            <svg viewBox="0 0 24 24">
-                <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21
-                0-4 1.79-4 4s1.79 4 4 4
-                4-1.79 4-4V7h4V3h-6z"/>
-            </svg>
-        `;
+
+        // --- FIX BAŞLANGICI ---
+        // innerHTML yerine createElementNS kullanılarak SVG oluşturuluyor.
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 24 24");
+        
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", "M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z");
+        
+        svg.appendChild(path);
+        btn.appendChild(svg);
+        // --- FIX SONU ---
 
         const timeDisplay = document.querySelector('.ytp-time-display');
         leftControls.insertBefore(btn, timeDisplay || leftControls.lastChild);
