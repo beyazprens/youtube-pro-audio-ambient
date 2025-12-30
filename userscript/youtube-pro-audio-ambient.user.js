@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Pro: Audio Enhancer
 // @namespace    https://github.com/Beyazprens/youtube-pro-audio-ambient
-// @version      2.1.2
+// @version      2.1.3
 // @description  Cinema-quality sound with a professional 5-band EQ and multiband compressor. Remembers your settings!
 // @author       Beyazprens
 // @match        https://www.youtube.com/*
@@ -37,6 +37,7 @@
             opacity: 0.9;
             transition: opacity 0.2s;
             position: relative;
+            z-index: 1000; /* Butonu öne çıkarır */
         }
         .audio-enhance-btn:hover {
             opacity: 1;
@@ -46,6 +47,7 @@
             height: 28px !important;
             fill: #fff !important;
             transition: transform 0.2s, fill 0.2s;
+            pointer-events: none; /* ÖNEMLİ: Tıklamanın butona geçmesini sağlar */
         }
         .audio-enhance-btn:active svg {
             transform: scale(0.95);
@@ -189,10 +191,10 @@
 
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.setAttribute("viewBox", "0 0 24 24");
-        
+
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("d", "M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z");
-        
+
         svg.appendChild(path);
         btn.appendChild(svg);
 
@@ -215,7 +217,9 @@
         }
 
         btn.addEventListener('click', (e) => {
+            e.stopPropagation();
             e.preventDefault();
+
             const currentVideo = document.querySelector('video');
             if (currentVideo) toggleState(currentVideo, btn);
         });
