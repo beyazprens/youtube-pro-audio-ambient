@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Pro: Audio Enhancer
 // @namespace    https://github.com/Beyazprens/youtube-pro-audio-ambient
-// @version      2.1.1
+// @version      2.1.2
 // @description  Cinema-quality sound with a professional 5-band EQ and multiband compressor. Remembers your settings!
 // @author       Beyazprens
 // @match        https://www.youtube.com/*
@@ -187,8 +187,6 @@
         btn.className = 'ytp-button audio-enhance-btn';
         btn.title = 'Enhance Audio';
 
-        // --- FIX BAŞLANGICI ---
-        // innerHTML yerine createElementNS kullanılarak SVG oluşturuluyor.
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.setAttribute("viewBox", "0 0 24 24");
         
@@ -197,7 +195,6 @@
         
         svg.appendChild(path);
         btn.appendChild(svg);
-        // --- FIX SONU ---
 
         const timeDisplay = document.querySelector('.ytp-time-display');
         leftControls.insertBefore(btn, timeDisplay || leftControls.lastChild);
