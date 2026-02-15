@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Pro: Audio Enhancer (Final)
 // @namespace    https://github.com/Beyazprens/youtube-pro-audio-ambient
-// @version      2.2.1
+// @version      2.2.3
 // @description  Stable, optimized cinema-quality audio enhancer for YouTube
 // @author       Beyazprens
 // @match        https://www.youtube.com/*
@@ -9,6 +9,8 @@
 // @homepageURL  https://github.com/Beyazprens/youtube-pro-audio-ambient
 // @supportURL   https://github.com/Beyazprens/youtube-pro-audio-ambient/issues
 // @grant        none
+// @downloadURL https://update.greasyfork.org/scripts/559816/YouTube%20Pro%3A%20Audio%20Enhancer%20%28Final%29.user.js
+// @updateURL https://update.greasyfork.org/scripts/559816/YouTube%20Pro%3A%20Audio%20Enhancer%20%28Final%29.meta.js
 // ==/UserScript==
 
 (() => {
@@ -78,56 +80,42 @@
         }
 
         const source = video._ytSource;
-        // 1. KATMAN: OTOBAN BASI (Derin Uğultu)
         const sub = ctx.createBiquadFilter();
         sub.type = 'lowshelf';
-        sub.frequency.value = 85;   // 85Hz altındaki her şeyi kaldırır
-        sub.gain.value = 10.0;      // +10dB! Görseldeki o yüksek tepeyi burası yapar.
+        sub.frequency.value = 85;
+        sub.gain.value = 10.0;
 
-
-        // 2. KATMAN: GÖĞÜS TİTRETEN VURUŞ (Punch)
         const impact = ctx.createBiquadFilter();
         impact.type = 'peaking';
-        impact.frequency.value = 55; // Kick davulunun tam "güm" dediği yer
-        impact.Q.value = 1.4;        // Sadece vuruşa odaklanır
-        impact.gain.value = 4.5;     // Shelf'in üstüne +4.5dB daha biner (Toplam ~14.5dB)
+        impact.frequency.value = 55;
+        impact.Q.value = 1.4;
+        impact.gain.value = 4.5;
 
 
-        // 3. KATMAN: BOŞLUK YARATMA (Mid Scoop)
-        // Görselde çizgi aşağı iniyor ya, işte burası o.
-        // Basın öne çıkması için orta sesleri çekiyoruz.
+
         const cut = ctx.createBiquadFilter();
         cut.type = 'peaking';
         cut.frequency.value = 400;
         cut.Q.value = 1.0;
-        cut.gain.value = -3.5;      // Basın altında ezilmesin diye vokali biraz geriye alır
+        cut.gain.value = -3.5;
 
 
-        // 4. KATMAN: YUMUŞAK TİZLER (Dark Highs)
-        // Görselde tizler düz -3dB gidiyor.
-        // Parlaklık yok, sadece sıcaklık var.
         const high = ctx.createBiquadFilter();
         high.type = 'highshelf';
         high.frequency.value = 8000;
-        high.gain.value = -2.0;     // Tizleri kıstık, kafa ütülemez.
+        high.gain.value = -2.0;
 
-
-        // 5. KATMAN: BASI TOPARLAYICI (Compressor)
-        // Bu kadar bas normalde sesi patlatır (clip).
-        // Bu ayar bas vurduğunda sesi kısmaz, sadece "toklaştırır".
         const comp = ctx.createDynamicsCompressor();
-        comp.threshold.value = -26;  // Basları çok erken yakalar
-        comp.knee.value = 35;        // Çok yumuşak
-        comp.ratio.value = 5.0;      // Güçlü sıkıştırma (Limiter gibi)
-        comp.attack.value = 0.02;    // Vurur vurmaz yakalar
-        comp.release.value = 0.15;   // Bas uzaması bitmeden bırakmaz
+        comp.threshold.value = -26;
+        comp.knee.value = 35;
+        comp.ratio.value = 5.0;
+        comp.attack.value = 0.02;
+        comp.release.value = 0.15;
 
 
-        // ÇIKIŞ SESİ
         const gain = ctx.createGain();
-        gain.gain.value = 1.25;      // Midleri kıstığımız için genel sesi biraz açtık.
+        gain.gain.value = 1.25;
 
-        // BAĞLANTILAR (Zinciri güncellememiz lazım çünkü isimler değişti)
         source.disconnect();
         source.connect(sub)
             .connect(impact)
