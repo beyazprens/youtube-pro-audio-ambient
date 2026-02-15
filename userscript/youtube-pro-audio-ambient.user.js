@@ -78,57 +78,66 @@
         }
 
         const source = video._ytSource;
-
+        // 1. KATMAN: OTOBAN BASI (Derin Uğultu)
         const sub = ctx.createBiquadFilter();
         sub.type = 'lowshelf';
-        sub.frequency.value = 70;    // göğüs hissi
-        sub.gain.value = 5.6;        // uçuş başlar
+        sub.frequency.value = 85;   // 85Hz altındaki her şeyi kaldırır
+        sub.gain.value = 10.0;      // +10dB! Görseldeki o yüksek tepeyi burası yapar.
 
 
-        const mud = ctx.createBiquadFilter();
-        mud.type = 'peaking';
-        mud.frequency.value = 300;   // bulanıklık merkezi
-        mud.Q.value = 1.25;
-        mud.gain.value = -4.2;       // perdeyi kaldırır
+        // 2. KATMAN: GÖĞÜS TİTRETEN VURUŞ (Punch)
+        const impact = ctx.createBiquadFilter();
+        impact.type = 'peaking';
+        impact.frequency.value = 55; // Kick davulunun tam "güm" dediği yer
+        impact.Q.value = 1.4;        // Sadece vuruşa odaklanır
+        impact.gain.value = 4.5;     // Shelf'in üstüne +4.5dB daha biner (Toplam ~14.5dB)
 
 
-        const pres = ctx.createBiquadFilter();
-        pres.type = 'peaking';
-        pres.frequency.value = 3400; // insan kulağı “wow” noktası
-        pres.Q.value = 0.85;
-        pres.gain.value = 3.4;       // vokal + detay öne fırlar
+        // 3. KATMAN: BOŞLUK YARATMA (Mid Scoop)
+        // Görselde çizgi aşağı iniyor ya, işte burası o.
+        // Basın öne çıkması için orta sesleri çekiyoruz.
+        const cut = ctx.createBiquadFilter();
+        cut.type = 'peaking';
+        cut.frequency.value = 400;
+        cut.Q.value = 1.0;
+        cut.gain.value = -3.5;      // Basın altında ezilmesin diye vokali biraz geriye alır
 
 
+        // 4. KATMAN: YUMUŞAK TİZLER (Dark Highs)
+        // Görselde tizler düz -3dB gidiyor.
+        // Parlaklık yok, sadece sıcaklık var.
         const high = ctx.createBiquadFilter();
         high.type = 'highshelf';
-        high.frequency.value = 10000; // hava bandı
-        high.gain.value = 5.2;        // ipek parlaklık
+        high.frequency.value = 8000;
+        high.gain.value = -2.0;     // Tizleri kıstık, kafa ütülemez.
 
 
+        // 5. KATMAN: BASI TOPARLAYICI (Compressor)
+        // Bu kadar bas normalde sesi patlatır (clip).
+        // Bu ayar bas vurduğunda sesi kısmaz, sadece "toklaştırır".
         const comp = ctx.createDynamicsCompressor();
-        comp.threshold.value = -20;   // loud ama ezmez
-        comp.knee.value = 24;         // tereyağı gibi geçiş
-        comp.ratio.value = 3.8;       // cinema punch
-        comp.attack.value = 0.07;     // transient ölmez
-        comp.release.value = 0.25;    // nefes alan ses
+        comp.threshold.value = -26;  // Basları çok erken yakalar
+        comp.knee.value = 35;        // Çok yumuşak
+        comp.ratio.value = 5.0;      // Güçlü sıkıştırma (Limiter gibi)
+        comp.attack.value = 0.02;    // Vurur vurmaz yakalar
+        comp.release.value = 0.15;   // Bas uzaması bitmeden bırakmaz
 
 
+        // ÇIKIŞ SESİ
         const gain = ctx.createGain();
-        gain.gain.value = 1.18;       // salon seviyesi
+        gain.gain.value = 1.25;      // Midleri kıstığımız için genel sesi biraz açtık.
 
-
-
-
+        // BAĞLANTILAR (Zinciri güncellememiz lazım çünkü isimler değişti)
         source.disconnect();
         source.connect(sub)
-            .connect(mud)
-            .connect(pres)
+            .connect(impact)
+            .connect(cut)
             .connect(high)
             .connect(comp)
             .connect(gain)
             .connect(ctx.destination);
 
-        video._ytChain = [sub, mud, pres, high, comp, gain];
+        video._ytChain = [sub, impact, cut, high, comp, gain];
         video._ytAudioEnhanced = true;
     }
 
