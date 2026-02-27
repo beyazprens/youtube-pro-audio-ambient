@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Pro: Audio Enhancer (Final)
 // @namespace    https://github.com/Beyazprens/youtube-pro-audio-ambient
-// @version      2.2.5
+// @version      2.2.6
 // @description  Stable, optimized cinema-quality audio enhancer for YouTube
 // @author       Beyazprens
 // @match        https://www.youtube.com/*
@@ -75,53 +75,68 @@
 
         const ctx = getCtx();
 
-        if (!video._ytSource) {
+        if (!video._ytSource || video._ytSource.mediaElement !== video) {
             video._ytSource = ctx.createMediaElementSource(video);
         }
 
         const source = video._ytSource;
         const sub = ctx.createBiquadFilter();
         sub.type = 'lowshelf';
-        sub.frequency.value = 85;
-        sub.gain.value = 10.0;
+        sub.frequency.value = 95;
+        sub.gain.value = 6.5;
 
         const impact = ctx.createBiquadFilter();
         impact.type = 'peaking';
-        impact.frequency.value = 55;
-        impact.Q.value = 1.4;
-        impact.gain.value = 4.5;
+        impact.frequency.value = 60;
+        impact.Q.value = 1.0;
+        impact.gain.value = 3.0;
 
         const cut = ctx.createBiquadFilter();
         cut.type = 'peaking';
-        cut.frequency.value = 400;
-        cut.Q.value = 1.0;
-        cut.gain.value = -3.5;
+        cut.frequency.value = 350;
+        cut.Q.value = 1.2;
+        cut.gain.value = -2.5;
+
+        const presence = ctx.createBiquadFilter();
+        presence.type = 'peaking';
+        presence.frequency.value = 3000;
+        presence.Q.value = 1.0;
+        presence.gain.value = 1.8;
 
         const high = ctx.createBiquadFilter();
         high.type = 'highshelf';
-        high.frequency.value = 8000;
-        high.gain.value = -2.0;
+        high.frequency.value = 9000;
+        high.gain.value = -1.5;
 
         const comp = ctx.createDynamicsCompressor();
-        comp.threshold.value = -26;
-        comp.knee.value = 35;
-        comp.ratio.value = 5.0;
-        comp.attack.value = 0.02;
-        comp.release.value = 0.15;
+        comp.threshold.value = -24;
+        comp.knee.value = 30;
+        comp.ratio.value = 3.5;
+        comp.attack.value = 0.03;
+        comp.release.value = 0.2;
 
         const gain = ctx.createGain();
-        gain.gain.value = 1.25;
+        gain.gain.value = 1.05;
 
-        source.disconnect();
+        const limiter = ctx.createDynamicsCompressor();
+        limiter.threshold.value = -1;
+        limiter.knee.value = 0;
+        limiter.ratio.value = 20;
+        limiter.attack.value = 0.003;
+        limiter.release.value = 0.05;
+
+        try { source.disconnect(); } catch {}
         source.connect(sub)
             .connect(impact)
             .connect(cut)
+            .connect(presence)
             .connect(high)
             .connect(comp)
             .connect(gain)
+            .connect(limiter)
             .connect(ctx.destination);
 
-        video._ytChain =[sub, impact, cut, high, comp, gain];
+        video._ytChain =[sub, impact, cut, presence, high, comp, gain, limiter];
         video._ytAudioEnhanced = true;
     }
 
@@ -140,7 +155,7 @@
 
     function inject() {
         const now = performance.now();
-        if (now - lastInject < 500) return;
+        if (now - lastInject < 300) return;
         lastInject = now;
 
         const controls = document.querySelector('.ytp-left-controls');
@@ -207,7 +222,7 @@
         const player = document.querySelector('#player');
         if (!player) return;
         clearInterval(waitPlayer);
-        obs.observe(player, { childList: true, subtree: false });
+        obs.observe(player, { childList: true, subtree: true, attributes: false });
         inject();
     }, 500);
 
@@ -216,6 +231,12 @@
         disableEnhancer(video);
         inject();
         if (enabled && video) buildChain(video);
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            inject();
+        }
     });
 
 })();
