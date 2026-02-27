@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Pro: Audio Enhancer (Final)
 // @namespace    https://github.com/Beyazprens/youtube-pro-audio-ambient
-// @version      2.2.3
+// @version      2.2.5
 // @description  Stable, optimized cinema-quality audio enhancer for YouTube
 // @author       Beyazprens
 // @match        https://www.youtube.com/*
@@ -91,14 +91,11 @@
         impact.Q.value = 1.4;
         impact.gain.value = 4.5;
 
-
-
         const cut = ctx.createBiquadFilter();
         cut.type = 'peaking';
         cut.frequency.value = 400;
         cut.Q.value = 1.0;
         cut.gain.value = -3.5;
-
 
         const high = ctx.createBiquadFilter();
         high.type = 'highshelf';
@@ -112,7 +109,6 @@
         comp.attack.value = 0.02;
         comp.release.value = 0.15;
 
-
         const gain = ctx.createGain();
         gain.gain.value = 1.25;
 
@@ -125,7 +121,7 @@
             .connect(gain)
             .connect(ctx.destination);
 
-        video._ytChain = [sub, impact, cut, high, comp, gain];
+        video._ytChain =[sub, impact, cut, high, comp, gain];
         video._ytAudioEnhanced = true;
     }
 
@@ -154,10 +150,19 @@
 
         const btn = document.createElement('button');
         btn.className = 'ytp-button audio-enhance-btn';
-        btn.innerHTML = `
-        <svg viewBox="0 0 24 24">
-            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3z"/>
-        </svg>`;
+        btn.title = 'Audio Enhancer';
+
+        // YOUTUBE CSP HATASINI ÇÖZEN KISIM (innerHTML yerine güvenli SVG oluşturma)
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("viewBox", "0 0 24 24");
+
+        const path = document.createElementNS(svgNS, "path");
+        path.setAttribute("d", "M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3z");
+
+        svg.appendChild(path);
+        btn.appendChild(svg);
+        // BİTİŞ
 
         const video = document.querySelector('video');
 
@@ -184,12 +189,14 @@
             localStorage.setItem('yt-pro-audio-enabled', enabled);
         };
 
-        const volumePanel = controls.querySelector('.ytp-volume-panel');
-        if (volumePanel && volumePanel.nextSibling) {
-            controls.insertBefore(btn, volumePanel.nextSibling);
+        // BUTON YERİNİ SÜRE KUTUSUNUN SAĞINA ALAN KISIM
+        const timeDisplay = controls.querySelector('.ytp-time-display');
+        if (timeDisplay) {
+            timeDisplay.insertAdjacentElement('afterend', btn);
         } else {
             controls.appendChild(btn);
         }
+        // BİTİŞ
     }
 
     /* ===================== OBSERVERS ===================== */
@@ -211,4 +218,4 @@
         if (enabled && video) buildChain(video);
     });
 
-})(); 
+})();
