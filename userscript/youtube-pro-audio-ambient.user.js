@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Pro: Audio Enhancer (Final)
 // @namespace    https://github.com/Beyazprens/youtube-pro-audio-ambient
-// @version      2.5.1
+// @version      2.5.2
 // @description  Cinema-quality audio enhancer + slowed reverb for YouTube (run independently or together)
 // @author       Beyazprens
 // @match        https://www.youtube.com/*
@@ -183,34 +183,47 @@
         let tail = source;
 
         if (enhancerEnabled) {
+            // ── EQ: all boosts kept gentle to avoid inter-band clipping ──
+
+            // Sub shelf: warm low-end body, not a heavy thump
             const sub = ctx.createBiquadFilter();
-            sub.type = 'lowshelf'; sub.frequency.value = 95; sub.gain.value = 6.5;
+            sub.type = 'lowshelf'; sub.frequency.value = 100; sub.gain.value = 3.0;
 
+            // Punch: tighten the punch band with a higher Q so it's surgical
             const impact = ctx.createBiquadFilter();
-            impact.type = 'peaking'; impact.frequency.value = 60;
-            impact.Q.value = 1.0; impact.gain.value = 3.0;
+            impact.type = 'peaking'; impact.frequency.value = 80;
+            impact.Q.value = 1.8; impact.gain.value = 1.5;
 
+            // Mud cut: carve out the boxy 200–400 Hz region
             const cut = ctx.createBiquadFilter();
-            cut.type = 'peaking'; cut.frequency.value = 350;
-            cut.Q.value = 1.2; cut.gain.value = -2.5;
+            cut.type = 'peaking'; cut.frequency.value = 300;
+            cut.Q.value = 1.0; cut.gain.value = -2.0;
 
+            // Presence: gentle vocal clarity lift
             const presence = ctx.createBiquadFilter();
-            presence.type = 'peaking'; presence.frequency.value = 3000;
-            presence.Q.value = 1.0; presence.gain.value = 1.8;
+            presence.type = 'peaking'; presence.frequency.value = 3500;
+            presence.Q.value = 1.2; presence.gain.value = 1.2;
 
+            // Air: very slight high-shelf air — no harshness
             const high = ctx.createBiquadFilter();
-            high.type = 'highshelf'; high.frequency.value = 9000; high.gain.value = -1.5;
+            high.type = 'highshelf'; high.frequency.value = 10000; high.gain.value = 0.8;
 
+            // ── Compressor: softer knee, gentler ratio, faster attack ──
+            // Catches peaks before they hit the limiter
             const comp = ctx.createDynamicsCompressor();
-            comp.threshold.value = -24; comp.knee.value = 30;
-            comp.ratio.value = 3.5; comp.attack.value = 0.03; comp.release.value = 0.2;
+            comp.threshold.value = -18; comp.knee.value = 12;
+            comp.ratio.value = 2.5; comp.attack.value = 0.005; comp.release.value = 0.15;
 
+            // ── Makeup gain: pulled back so the compressor's GR doesn't
+            //    push total level above 0 dBFS ──
             const makeupGain = ctx.createGain();
-            makeupGain.gain.value = 1.05;
+            makeupGain.gain.value = 0.9;
 
+            // ── Brick-wall limiter: threshold at -2 dBFS gives 2 dB of
+            //    headroom before any Web Audio internal clipping ──
             const limiter = ctx.createDynamicsCompressor();
-            limiter.threshold.value = -1; limiter.knee.value = 0;
-            limiter.ratio.value = 20; limiter.attack.value = 0.003; limiter.release.value = 0.05;
+            limiter.threshold.value = -2; limiter.knee.value = 0;
+            limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.08;
 
             tail.connect(sub)
                 .connect(impact).connect(cut).connect(presence)
