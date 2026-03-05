@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Pro: Audio Enhancer (Final)
 // @namespace    https://github.com/Beyazprens/youtube-pro-audio-ambient
-// @version      2.2.6
+// @version      2.2.7
 // @description  Stable, optimized cinema-quality audio enhancer for YouTube
 // @author       Beyazprens
 // @match        https://www.youtube.com/*
@@ -9,8 +9,6 @@
 // @homepageURL  https://github.com/Beyazprens/youtube-pro-audio-ambient
 // @supportURL   https://github.com/Beyazprens/youtube-pro-audio-ambient/issues
 // @grant        none
-// @downloadURL https://update.greasyfork.org/scripts/559816/YouTube%20Pro%3A%20Audio%20Enhancer%20%28Final%29.user.js
-// @updateURL https://update.greasyfork.org/scripts/559816/YouTube%20Pro%3A%20Audio%20Enhancer%20%28Final%29.meta.js
 // ==/UserScript==
 
 (() => {
@@ -70,7 +68,8 @@
         video._ytAudioEnhanced = false;
     }
 
-    function buildChain(video) {
+
+  function buildChain(video) {
         if (video._ytChain) return;
 
         const ctx = getCtx();
@@ -80,63 +79,71 @@
         }
 
         const source = video._ytSource;
+
+        const lowCut = ctx.createBiquadFilter();
+        lowCut.type = "highpass";
+        lowCut.frequency.value = 25;
+
         const sub = ctx.createBiquadFilter();
-        sub.type = 'lowshelf';
-        sub.frequency.value = 95;
-        sub.gain.value = 6.5;
+        sub.type = "lowshelf";
+        sub.frequency.value = 65;
+        sub.gain.value = 4.5;
 
-        const impact = ctx.createBiquadFilter();
-        impact.type = 'peaking';
-        impact.frequency.value = 60;
-        impact.Q.value = 1.0;
-        impact.gain.value = 3.0;
+        const punch = ctx.createBiquadFilter();
+        punch.type = "peaking";
+        punch.frequency.value = 95;
+        punch.Q.value = 1.2;
+        punch.gain.value = 2.5;
 
-        const cut = ctx.createBiquadFilter();
-        cut.type = 'peaking';
-        cut.frequency.value = 350;
-        cut.Q.value = 1.2;
-        cut.gain.value = -2.5;
+        const mudCut = ctx.createBiquadFilter();
+        mudCut.type = "peaking";
+        mudCut.frequency.value = 300;
+        mudCut.Q.value = 0.8;
+        mudCut.gain.value = -3.5;
 
         const presence = ctx.createBiquadFilter();
-        presence.type = 'peaking';
-        presence.frequency.value = 3000;
+        presence.type = "peaking";
+        presence.frequency.value = 3500;
         presence.Q.value = 1.0;
-        presence.gain.value = 1.8;
+        presence.gain.value = 2.0;
 
-        const high = ctx.createBiquadFilter();
-        high.type = 'highshelf';
-        high.frequency.value = 9000;
-        high.gain.value = -1.5;
+        const air = ctx.createBiquadFilter();
+        air.type = "highshelf";
+        air.frequency.value = 11500;
+        air.gain.value = 2.5;
 
         const comp = ctx.createDynamicsCompressor();
-        comp.threshold.value = -24;
+        comp.threshold.value = -15;
         comp.knee.value = 30;
-        comp.ratio.value = 3.5;
+        comp.ratio.value = 2.2;
         comp.attack.value = 0.03;
         comp.release.value = 0.2;
 
         const gain = ctx.createGain();
-        gain.gain.value = 1.05;
+        gain.gain.value = 1.15;
 
         const limiter = ctx.createDynamicsCompressor();
-        limiter.threshold.value = -1;
+        limiter.threshold.value = -0.5;
         limiter.knee.value = 0;
         limiter.ratio.value = 20;
-        limiter.attack.value = 0.003;
+        limiter.attack.value = 0.002;
         limiter.release.value = 0.05;
 
         try { source.disconnect(); } catch {}
-        source.connect(sub)
-            .connect(impact)
-            .connect(cut)
+
+        source
+            .connect(lowCut)
+            .connect(sub)
+            .connect(punch)
+            .connect(mudCut)
             .connect(presence)
-            .connect(high)
+            .connect(air)
             .connect(comp)
             .connect(gain)
             .connect(limiter)
             .connect(ctx.destination);
 
-        video._ytChain =[sub, impact, cut, presence, high, comp, gain, limiter];
+        video._ytChain =[lowCut, sub, punch, mudCut, presence, air, comp, gain, limiter];
         video._ytAudioEnhanced = true;
     }
 
@@ -167,7 +174,6 @@
         btn.className = 'ytp-button audio-enhance-btn';
         btn.title = 'Audio Enhancer';
 
-        // YOUTUBE CSP HATASINI ÇÖZEN KISIM (innerHTML yerine güvenli SVG oluşturma)
         const svgNS = "http://www.w3.org/2000/svg";
         const svg = document.createElementNS(svgNS, "svg");
         svg.setAttribute("viewBox", "0 0 24 24");
@@ -177,7 +183,6 @@
 
         svg.appendChild(path);
         btn.appendChild(svg);
-        // BİTİŞ
 
         const video = document.querySelector('video');
 
@@ -204,14 +209,12 @@
             localStorage.setItem('yt-pro-audio-enabled', enabled);
         };
 
-        // BUTON YERİNİ SÜRE KUTUSUNUN SAĞINA ALAN KISIM
         const timeDisplay = controls.querySelector('.ytp-time-display');
         if (timeDisplay) {
             timeDisplay.insertAdjacentElement('afterend', btn);
         } else {
             controls.appendChild(btn);
         }
-        // BİTİŞ
     }
 
     /* ===================== OBSERVERS ===================== */
