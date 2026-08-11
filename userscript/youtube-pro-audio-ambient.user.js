@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         YouTube Pro: Audio Enhancer (Final)
+// @name         YouTube Pro: Audio Enhancer (DEV)
 // @namespace    https://github.com/Beyazprens/youtube-pro-audio-ambient
-// @version      2.2.7
+// @version      2.2.8
 // @description  Stable, optimized cinema-quality audio enhancer for YouTube
 // @author       Beyazprens
 // @match        https://www.youtube.com/*
@@ -67,9 +67,7 @@
         video._ytChain = null;
         video._ytAudioEnhanced = false;
     }
-
-
-  function buildChain(video) {
+    function buildChain(video) {
         if (video._ytChain) return;
 
         const ctx = getCtx();
@@ -80,72 +78,130 @@
 
         const source = video._ytSource;
 
-        const lowCut = ctx.createBiquadFilter();
-        lowCut.type = "highpass";
-        lowCut.frequency.value = 25;
+        // ===== INPUT STAGE =====
+        // Girişte hafif boost — kaynak sinyali besler ama zorlamaz
+        const input = ctx.createGain();
+        input.gain.value = 1.05;
 
+        // ===== SUB-RUMBLE CUT =====
+        // 30Hz altındaki duyulmayan gürültüyü keser (hoparlör/kulaklık nefes alır)
+        const rumble = ctx.createBiquadFilter();
+        rumble.type = "highpass";
+        rumble.frequency.value = 30;
+        rumble.Q.value = 0.707;
+
+        // ===== SUB-BASS (Derinlik) =====
+        // 60Hz — göğüste hissedilen derin bass. Şişmez, sadece "var".
         const sub = ctx.createBiquadFilter();
         sub.type = "lowshelf";
-        sub.frequency.value = 65;
-        sub.gain.value = 4.5;
+        sub.frequency.value = 60;
+        sub.gain.value = 4.0;
 
-        const punch = ctx.createBiquadFilter();
-        punch.type = "peaking";
-        punch.frequency.value = 95;
-        punch.Q.value = 1.2;
-        punch.gain.value = 2.5;
+        // ===== MID-BASS (Sıcaklık) =====
+        // 110Hz — kick drum ve bass gitarın gövdesi. Yumuşak dolgunluk.
+        const bassBody = ctx.createBiquadFilter();
+        bassBody.type = "peaking";
+        bassBody.frequency.value = 110;
+        bassBody.Q.value = 1.1;
+        bassBody.gain.value = 2.5;
 
-        const mudCut = ctx.createBiquadFilter();
-        mudCut.type = "peaking";
-        mudCut.frequency.value = 300;
-        mudCut.Q.value = 0.8;
-        mudCut.gain.value = -3.5;
+        // ===== MUD CUT (Temizlik) =====
+        // 280Hz — kafa şişmesini engeller ama fazla kesmez (doğallık kalır)
+        const mud = ctx.createBiquadFilter();
+        mud.type = "peaking";
+        mud.frequency.value = 280;
+        mud.Q.value = 1.0;
+        mud.gain.value = -2.0;
 
+        // ===== LOWER-MID WARMTH =====
+        // 500Hz hafif dip — vokalin altını temizler
+        const lowMid = ctx.createBiquadFilter();
+        lowMid.type = "peaking";
+        lowMid.frequency.value = 500;
+        lowMid.Q.value = 1.2;
+        lowMid.gain.value = -1.0;
+
+        // ===== VOCAL CLARITY =====
+        // 2.5kHz — vokal öne gelir, anlaşılırlık artar
+        const vocal = ctx.createBiquadFilter();
+        vocal.type = "peaking";
+        vocal.frequency.value = 2500;
+        vocal.Q.value = 1.0;
+        vocal.gain.value = 2.5;
+
+        // ===== PRESENCE (Tatlı Parlaklık) =====
+        // 5kHz — enstrümanlara canlılık, ama tırmalamaz
         const presence = ctx.createBiquadFilter();
         presence.type = "peaking";
-        presence.frequency.value = 3500;
-        presence.Q.value = 1.0;
+        presence.frequency.value = 5000;
+        presence.Q.value = 1.2;
         presence.gain.value = 2.0;
 
+        // ===== DE-ESSER (Kritik!) =====
+        // 7.5kHz — "S", "Ş", "Z" seslerinin tırmalayıcı bölgesini yumuşatır
+        // Bu olmadan hi-shelf kaldırınca kulak acır
+        const deEsser = ctx.createBiquadFilter();
+        deEsser.type = "peaking";
+        deEsser.frequency.value = 7500;
+        deEsser.Q.value = 3.5;
+        deEsser.gain.value = -3.0;
+
+        // ===== AIR (Nefes / Ferahlık) =====
+        // 12kHz — havadar, ferah, "hi-fi" hissi. Tiz değil, atmosfer.
         const air = ctx.createBiquadFilter();
         air.type = "highshelf";
-        air.frequency.value = 11500;
+        air.frequency.value = 12000;
         air.gain.value = 2.5;
 
-        const comp = ctx.createDynamicsCompressor();
-        comp.threshold.value = -15;
-        comp.knee.value = 30;
-        comp.ratio.value = 2.2;
-        comp.attack.value = 0.03;
-        comp.release.value = 0.2;
+        // ===== GLUE COMPRESSOR (Yumuşak birleştirici) =====
+        // Tüm frekansları birbirine "yapıştırır" — profesyonel his verir
+        const glue = ctx.createDynamicsCompressor();
+        glue.threshold.value = -22;
+        glue.knee.value = 24;
+        glue.ratio.value = 2.5;
+        glue.attack.value = 0.020; // Transient'leri korur (drum vuruşu ölmez)
+        glue.release.value = 0.250;
 
-        const gain = ctx.createGain();
-        gain.gain.value = 1.15;
-
+        // ===== SAFETY LIMITER (Görünmez koruma) =====
+        // Ani ses patlamalarını yakalar — clipping asla olmaz
         const limiter = ctx.createDynamicsCompressor();
-        limiter.threshold.value = -0.5;
+        limiter.threshold.value = -2.0;
         limiter.knee.value = 0;
         limiter.ratio.value = 20;
-        limiter.attack.value = 0.002;
-        limiter.release.value = 0.05;
+        limiter.attack.value = 0.001;
+        limiter.release.value = 0.100;
+
+        // ===== OUTPUT (Makyaj Gain) =====
+        // Kompresyon sonrası kaybedilen ses seviyesini geri kazandırır
+        const output = ctx.createGain();
+        output.gain.value = 1.10;
 
         try { source.disconnect(); } catch {}
 
         source
-            .connect(lowCut)
+            .connect(input)
+            .connect(rumble)
             .connect(sub)
-            .connect(punch)
-            .connect(mudCut)
+            .connect(bassBody)
+            .connect(mud)
+            .connect(lowMid)
+            .connect(vocal)
             .connect(presence)
+            .connect(deEsser)
             .connect(air)
-            .connect(comp)
-            .connect(gain)
+            .connect(glue)
             .connect(limiter)
+            .connect(output)
             .connect(ctx.destination);
 
-        video._ytChain =[lowCut, sub, punch, mudCut, presence, air, comp, gain, limiter];
+        video._ytChain = [
+            input, rumble, sub, bassBody, mud, lowMid,
+            vocal, presence, deEsser, air, glue, limiter, output
+        ];
+
         video._ytAudioEnhanced = true;
     }
+
 
     function disableEnhancer(video) {
         if (!video?._ytSource) return;
